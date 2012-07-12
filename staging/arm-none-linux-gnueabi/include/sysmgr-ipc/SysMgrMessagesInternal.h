@@ -69,6 +69,8 @@ IPC_BEGIN_MESSAGES(View)
     // clear webkit's DOM cache for all web pages
     IPC_MESSAGE_CONTROL0(View_Mgr_ClearWebkitCache)
 
+    IPC_MESSAGE_CONTROL0(View_Mgr_FlushWebPageCache)
+
     // set javascript flags on all web pages
     // params: javascript flags to set
     IPC_MESSAGE_CONTROL1(View_Mgr_SetJavascriptFlags, std::string)
@@ -77,12 +79,20 @@ IPC_BEGIN_MESSAGES(View)
     // params: enable debugger
     IPC_MESSAGE_CONTROL1(View_Mgr_EnableDebugger, bool)
 
+    IPC_MESSAGE_CONTROL1(View_Mgr_ListOrphanedNodes, std::string)
+
     // perform low memory actions on the WAM side
     // params: perform expensive cleanup operations
     IPC_MESSAGE_CONTROL1(View_Mgr_PerformLowMemoryActions, bool)
 
     // notifies WAM that the system is shutting down
     IPC_MESSAGE_CONTROL0(View_Mgr_ShutdownEvent)
+
+    IPC_MESSAGE_CONTROL2(View_Mgr_NotifyDragStatus, bool, std::string)
+
+    IPC_MESSAGE_CONTROL1(View_Mgr_NotifyMetaModeStatus, bool)
+
+    IPC_MESSAGE_CONTROL1(View_Mgr_NotifyFastAccelerometerEnabled, bool)
 
     // retrieves a list of process id's for all web apps currently running
     // params: include system apps
@@ -99,6 +109,8 @@ IPC_BEGIN_MESSAGES(View)
     // tell the webkit process to suspend
     // params: suspend was successful
     IPC_SYNC_MESSAGE_CONTROL0_1(View_Mgr_SuspendWebkitProcess, bool)
+
+    IPC_SYNC_MESSAGE_CONTROL4_1(View_Mgr_PerformHTML5DbOperation, int, std::string, std::string, std::string, int)
 
     // provide access to shared/global properties
     // params: key to shared buffer containing global properties
@@ -142,6 +154,8 @@ IPC_BEGIN_MESSAGES(View)
     // params: structure containing event information (mouse, accel, gesture, etc.)
     IPC_MESSAGE_ROUTED1(View_InputEvent, SysMgrEventWrapper)
 
+    IPC_MESSAGE_ROUTED1(View_MouseEvent, SysMgrMouseEvent)
+
     // send a key event to a window
     // params: structure containing information about a key event
     IPC_MESSAGE_ROUTED1(View_KeyEvent, SysMgrKeyEvent)
@@ -159,11 +173,17 @@ IPC_BEGIN_MESSAGES(View)
     // changes direct rendering state for a window (enable/disable depending on shared meta data)
     IPC_MESSAGE_ROUTED0(View_DirectRenderingChanged)
 
+    IPC_MESSAGE_ROUTED2(View_AllowDirectRendering, int, int)
+
+    IPC_SYNC_MESSAGE_ROUTED0_0(View_DisallowDirectRendering)
+
     // informs a PDK window to pause itself
     IPC_MESSAGE_ROUTED0(View_Pause)
 
     // informs a PDK window to resume itself
     IPC_MESSAGE_ROUTED0(View_Resume)
+
+    IPC_MESSAGE_ROUTED1(View_WindowBufferAck, int)
 
     // informs the web app that its backing window has completed running the requested scene transition
     IPC_MESSAGE_ROUTED0(View_SceneTransitionFinished)
@@ -180,6 +200,16 @@ IPC_BEGIN_MESSAGES(View)
     // perform a select all operation on the currently selected content
     IPC_MESSAGE_ROUTED0(View_SelectAll)
 
+    IPC_MESSAGE_ROUTED0(View_EnableDirectRendering)
+
+    IPC_SYNC_MESSAGE_ROUTED0_0(View_DisableDirectRendering)
+
+    IPC_MESSAGE_ROUTED4(View_OverlayNotificationCreated, int, int, int, unsigned int)
+
+    IPC_MESSAGE_ROUTED1(View_OverlayNotificationUpdated, int)
+
+    IPC_MESSAGE_ROUTED1(View_OverlayNotificationRemoved, int)
+    
     // sets/replaces a marked-up/composed piece of text in the currently focused input field
     // params: string to replace the current composition
     IPC_MESSAGE_ROUTED1(View_SetComposingText, std::string)
@@ -197,6 +227,7 @@ IPC_BEGIN_MESSAGES(View)
 
     // blurs the currently focused input field
     IPC_MESSAGE_ROUTED0(View_RemoveInputFocus)
+
 
 IPC_END_MESSAGES(View)
 
@@ -229,6 +260,10 @@ IPC_BEGIN_MESSAGES(ViewHost)
     // params: error code
     IPC_MESSAGE_CONTROL1(ViewHost_ModalDismissedAtPreCreate, int)
 
+    IPC_MESSAGE_CONTROL2(ViewHost_SetWindowFullScreenMode, int, bool)
+
+    IPC_MESSAGE_CONTROL2(ViewHost_SetWindowDirectRenderingMode, int, bool)
+
     // set window properties
     // params: json string representing an object containing properties to set
     IPC_MESSAGE_CONTROL2(ViewHost_SetWindowProperties, int, std::string)
@@ -240,6 +275,12 @@ IPC_BEGIN_MESSAGES(ViewHost)
     // unfocus a window
     // params: window key
     IPC_MESSAGE_CONTROL1(ViewHost_UnfocusWindow, int)
+
+    IPC_MESSAGE_CONTROL6(ViewHost_StartDrag, int, int, int, int, int, std::string)
+
+    IPC_MESSAGE_CONTROL5(ViewHost_EndDrag, int, int, int, std::string, bool)
+
+    IPC_MESSAGE_CONTROL1(ViewHost_WindowUpdate, int)
 
     // tells the system to send a paste event to the active window
     IPC_MESSAGE_CONTROL0(ViewHost_PasteToActiveWindow)
@@ -258,6 +299,8 @@ IPC_BEGIN_MESSAGES(ViewHost)
     // Add, Update, Remove the active call banner from the system
     // params: event containing the operation to carry out
     IPC_MESSAGE_CONTROL1(ViewHost_ActiveCallBannerEvent, ActiveCallBannerEventWrapper)
+
+    IPC_MESSAGE_CONTROL0(ViewHost_MsmEntryComplete)
 
     // Enter/Exit dock mode (only allowed by the systemui app)
     // params: enable
@@ -293,9 +336,21 @@ IPC_BEGIN_MESSAGES(ViewHost)
     // requests that a window flushes and unlocks its painting buffer
     IPC_MESSAGE_ROUTED0(ViewHost_UpdateWindowRequest)
 
+    IPC_MESSAGE_ROUTED3(ViewHost_UpdateDoubleBufferedWindow, unsigned int, unsigned int, int)
+
+    IPC_MESSAGE_ROUTED3(ViewHost_DoubleBufferedWindowRequest, unsigned int, unsigned int, int)
+
+    IPC_MESSAGE_ROUTED4(ViewHost_SharedSurfaceAdded, unsigned int, unsigned int, int, int)
+
+    IPC_MESSAGE_ROUTED1(ViewHost_SharedSurfaceRemoved, unsigned int)
+
+    IPC_MESSAGE_ROUTED5(ViewHost_SharedSurfaceUpdated, unsigned int, int, int, int, int)
+
     // provides the dimensions of the window that are being rendered into
     // params: width, height
     IPC_MESSAGE_ROUTED2(ViewHost_SetVisibleDimensions, int, int)
+
+    IPC_MESSAGE_ROUTED2(ViewHost_SetAppWindowDimensions, int, int)
 
     // notifies the system that a card window has initiated a scene transition
     // params: width of shared transition buffer, height of shared transition buffer
@@ -339,6 +394,8 @@ IPC_BEGIN_MESSAGES(ViewHost)
     // params: left, right, top, bottom
     IPC_MESSAGE_ROUTED4(ViewHost_Alert_SetContentRect, int, int, int, int)
 
+    IPC_MESSAGE_ROUTED1(ViewHost_Alert_SetLandscapeHeight, int)
+
     // sets whether this dashboard wants click events sent to it when shown on the lock screen
     // params: allow
     IPC_MESSAGE_ROUTED1(ViewHost_Dashboard_SetClickableWhenLocked, bool)
@@ -350,6 +407,10 @@ IPC_BEGIN_MESSAGES(ViewHost)
     // sets a non-default icon used when a closed dashboard contains this window
     // params: icon file name
     IPC_MESSAGE_ROUTED1(ViewHost_Dashboard_SetIcon, std::string)
+
+    IPC_MESSAGE_ROUTED1(ViewHost_ActiveBanner_SetContentWidth, int)
+
+    IPC_MESSAGE_ROUTED1(ViewHost_Card_SetSplashBackgroundName, std::string)
 
     // configure launch options for this card
     // params: event containing launch options for this card
